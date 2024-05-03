@@ -4,38 +4,37 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class WriteFile {
-    public static void main(String[] args) {
-        byte[] buff = new byte[1024];
-        boolean cont = true;
-        FileOutputStream outfile = null;
-        int periodAscii =  '.';
 
-        try {
-            outfile = new FileOutputStream(args[0]);
-        } catch (FileNotFoundException e) {
-            System.err.println("ファイルがありません");
+public class WriteFile {
+    private static final int    BUFFER_SIZE         = 1024;
+    private static final int    PERIOD_ASCII        = '.';
+    private static final String ERROR_NO_FILENAME   = "ファイル名を指定してください";
+    private static final String ERROR_WRITE_FAILURE = "ファイルの書き込みに失敗しました: ";
+
+    public static void main(String[] args) {
+        byte[] buff = new byte[BUFFER_SIZE];
+        boolean cont = true;
+
+        if (args.length == 0) {
+            System.err.println(ERROR_NO_FILENAME);
             System.exit(1);
         }
 
-        while (cont) {
-            try {
+        try (FileOutputStream outfile = new FileOutputStream(args[0])) {
+            while (cont) {
                 int n = System.in.read(buff);
-                System.out.write(buff, 0, n);
-                if (buff[0] == periodAscii) {
+                if (buff[0] == PERIOD_ASCII) {
                     cont = false;
                 } else {
                     outfile.write(buff, 0, n);
                 }
-            } catch (Exception e) {
-                System.exit(1);
             }
-            try {
-                outfile.close();
-            } catch (IOException e) {
-                System.err.println("ファイルクローズエラー");
-                System.exit(1);
-            }
+        } catch (FileNotFoundException e) {
+            System.err.println(ERROR_NO_FILENAME);
+            System.exit(1);
+        } catch (IOException e) {
+            System.err.println(ERROR_WRITE_FAILURE + e.getMessage());
+            System.exit(1);
         }
     }
 }
