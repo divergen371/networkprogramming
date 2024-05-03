@@ -9,7 +9,7 @@ public class WriteFile {
         byte[] buff = new byte[1024];
         boolean cont = true;
         FileOutputStream outfile = null;
-        int periodAscii = (int) '.';
+        int periodAscii =  '.';
 
         try {
             outfile = new FileOutputStream(args[0]);
