@@ -1,18 +1,18 @@
 package networkProgramming;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 
 public class ReadNet {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         byte[] buff = new byte[1024];
 
         try (Socket readSock = new Socket(args[0], Integer.parseInt(args[1]));
-                InputStream inputStr = readSock.getInputStream()) {
+                InputStream inputStr = readSock.getInputStream()
+        ) {
 
             int n;
-            while ((n = inputStr.read(buff)) != -1) {
+            while ((n = inputStr.read(buff)) != - 1) {
                 System.out.write(buff, 0, n);
             }
         } catch (Exception e) {
