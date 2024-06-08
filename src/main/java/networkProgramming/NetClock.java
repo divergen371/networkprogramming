@@ -12,12 +12,13 @@ public class NetClock {
 
     public static void main(String[] args) {
         try (ServerSocket servSock = new ServerSocket(6000, 300)) {
+            //noinspection InfiniteLoopStatement
             while (true) {
                 try (Socket sock = servSock.accept();
                         OutputStream out = sock.getOutputStream()) {
 
                     Date date = new Date();
-                    String outstr = "\n" + "Hello, this is NetClock Server." + "\n" + date.toString() + "\n" + "Thank you." + "\n";
+                    String outstr = "\n" + "Hello, this is NetClock Server." + "\n" + date + "\n" + "Thank you." + "\n";
                     out.write(outstr.getBytes());
                     out.write('\n');
                     out.flush();
