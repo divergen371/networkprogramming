@@ -1,105 +1,130 @@
 package networkProgramming;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * PseudHttpDaemon クラスは簡易的なHTTPサーバーを実装します。
- * 指定されたファイルをクライアントに送信します。
- */
 public class PseudHttpDaemon {
 
     private static final Logger logger = Logger.getLogger(PseudHttpDaemon.class.getName());
 
-    /**
-     * メインメソッド。サーバーを開始し、指定されたファイルをクライアントに送信します。
-     *
-     * @param args コマンドライン引数。送信するファイルのパスを指定します。
-     */
     public static void main(String[] args) {
         if (args.length != 1) {
-            logger.severe("使用法: java PseudHttpDaemon <ファイル名>");
+            logger.severe("Usage: java PseudHttpDaemon <filename>");
             System.exit(1);
         }
 
         String filePath = args[0];
         Path file = Paths.get(filePath);
         if (! Files.exists(file) || ! Files.isRegularFile(file)) {
-            logger.severe("ファイルが見つかりません: " + filePath);
+            logger.severe("File not found: " + filePath);
             System.exit(1);
         }
 
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        new PseudHttpDaemon().startServer(8080, file);
+    }
 
-        while (true) {
-            try (ServerSocket serverSocket = new ServerSocket(8080, 300)) {
-                logger.info("サーバーがポート8080で開始しました");
+    private void startServer(int port, Path file) {
+        EventLoopGroup bossGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
 
-                while (true) {
-                    try {
-                        Socket socket = serverSocket.accept();
-                        executorService.submit(() -> handleClient(
-                                socket,
-                                file));
-                    } catch (IOException e) {
-                        logger.log(Level.WARNING, "クライアント接続エラー", e);
-                    }
-                }
-            } catch (IOException e) {
-                logger.log(Level.SEVERE, "サーバーエラー。再起動します...", e);
-                // 例外が発生した場合、数秒待ってから再試行
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+        try {
+            ServerBootstrap b = new ServerBootstrap();
+            b.group(bossGroup, workerGroup)
+             .channel(NioServerSocketChannel.class)
+             .handler(new LoggingHandler(LogLevel.INFO))
+             .childHandler(new ChannelInitializer<SocketChannel>() {
+                 @Override
+                 public void initChannel(SocketChannel ch) {
+                     ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                     ch.pipeline().addLast(new HttpRequestDecoder());
+                     ch.pipeline().addLast(new HttpObjectAggregator(65536));
+                     ch.pipeline().addLast(new HttpResponseEncoder());
+                     ch.pipeline().addLast(new ChunkedWriteHandler());
+                     ch.pipeline().addLast(new HttpServerHandler(file));
+                 }
+             })
+             .option(ChannelOption.SO_BACKLOG, 128)
+             .childOption(ChannelOption.SO_KEEPALIVE, true);
+
+            ChannelFuture f = b.bind(port).sync();
+            logger.info("Server started on port: " + port);
+            f.channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            logger.log(Level.SEVERE, "Server interrupted", e);
+        } finally {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
         }
     }
 
-    /**
-     * クライアントとの通信を処理します。
-     *
-     * @param socket クライアントソケット
-     * @param file   送信するファイルのパス
-     */
-    private static void handleClient(Socket socket, Path file) {
-        logger.info("接続要求: " + socket.getInetAddress().getHostName());
+    private static class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+        private final Path file;
 
-        try (OutputStream out = socket.getOutputStream();
-                InputStream infile = Files.newInputStream(file)
-        ) {
+        public HttpServerHandler(Path file) {
+            this.file = file;
+        }
 
-            // HTTP/1.1のレスポンスを作成
-            String httpResponse = String.join(
-                    "\r\n",
-                    "HTTP/1.1 200 OK",
-                    "Content-Type: " + Files.probeContentType(file),
-                    "Content-Length: " + Files.size(file),
-                    "Connection: close",
-                    "",
-                    ""
-            );
-            out.write(httpResponse.getBytes());
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            logger.info("Client connected: " + ctx.channel().remoteAddress());
+        }
 
-            // ファイルの内容を送信
-            byte[] buf = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = infile.read(buf)) != - 1) {
-                out.write(buf, 0, bytesRead);
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) {
+            logger.info("Client disconnected: " + ctx.channel()
+                                                     .remoteAddress());
+        }
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
+            logger.info("HTTP request received: " + request.uri());
+            try {
+                byte[] content = Files.readAllBytes(file);
+                FullHttpResponse response = new DefaultFullHttpResponse(
+                        HttpVersion.HTTP_1_1,
+                        HttpResponseStatus.OK,
+                        Unpooled.copiedBuffer(content));
+                response.headers().set(
+                        HttpHeaderNames.CONTENT_TYPE,
+                        Files.probeContentType(file));
+                response.headers().set(
+                        HttpHeaderNames.CONTENT_LENGTH,
+                        response.content().readableBytes());
+                response.headers().set(
+                        HttpHeaderNames.CONNECTION,
+                        HttpHeaderValues.KEEP_ALIVE);
+
+                ctx.writeAndFlush(response)
+                   .addListener(ChannelFutureListener.CLOSE);
+                logger.info("HTTP response sent for request: " + request.uri());
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "File read error", e);
+                FullHttpResponse response = new DefaultFullHttpResponse(
+                        HttpVersion.HTTP_1_1,
+                        HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                ctx.writeAndFlush(response)
+                   .addListener(ChannelFutureListener.CLOSE);
             }
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "ファイル送信エラー", e);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            logger.log(Level.SEVERE, "Handler error", cause);
+            ctx.close();
         }
     }
 }
