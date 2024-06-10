@@ -12,12 +12,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.*;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
-import org.conscrypt.OpenSSLProvider;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.Security;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,17 +46,10 @@ public class PseudHttp2Daemon {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
         try {
-            // Conscryptセキュリティプロバイダの登録
-            Security.addProvider(new OpenSSLProvider());
-
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             SslContext sslCtx = SslContextBuilder.forServer(
                                                          ssc.certificate(),
                                                          ssc.privateKey())
-                                                 .sslProvider(SslProvider.OPENSSL)
-                                                 .ciphers(
-                                                         Http2SecurityUtil.CIPHERS,
-                                                         SupportedCipherSuiteFilter.INSTANCE)
                                                  .applicationProtocolConfig(new ApplicationProtocolConfig(
                                                          ApplicationProtocolConfig.Protocol.ALPN,
                                                          ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
@@ -234,7 +225,7 @@ public class PseudHttp2Daemon {
                 response.headers()
                         .set(
                                 HttpHeaderNames.CONNECTION,
-                                HttpHeaderValues.KEEP_ALIVE);
+                                HttpHeaderValues.CLOSE);
 
                 ctx.writeAndFlush(response)
                    .addListener(ChannelFutureListener.CLOSE);
