@@ -77,7 +77,7 @@ public class PseudHttp2Daemon {
                                       .addLast(Http2FrameCodecBuilder.forServer()
                                                                      .build());
                                    ctx.pipeline()
-                                      .addLast(new Http2MultiplexHandler(new ChannelInitializer<Channel>() {
+                                      .addLast(new Http2MultiplexHandler(new ChannelInitializer<>() {
                                           @Override
                                           protected void initChannel(Channel ch) {
                                               ch.pipeline()
