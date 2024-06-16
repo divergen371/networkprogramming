@@ -10,16 +10,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Telnet2 {
-    static final int DEFAULT_TELNET_PORT = 23;
-    static final byte IAC = (byte) 255;
-    static final byte DONT = (byte) 254;
-    static final byte DO = (byte) 253;
-    static final byte WONT = (byte) 252;
-    static final byte WILL = (byte) 251;
-    private static final Logger logger = Logger.getLogger(Telnet2.class.getName());
-    private OutputStream serverOutput;
-    private BufferedInputStream serverInput;
-    private Socket serverSocket;
+    static final         int                 DEFAULT_TELNET_PORT = 23;
+    static final         byte                IAC                 = (byte) 255;
+    static final         byte                DONT                = (byte) 254;
+    static final         byte                DO                  = (byte) 253;
+    static final         byte                WONT                = (byte) 252;
+    static final         byte                WILL                = (byte) 251;
+    private static final Logger              logger              = Logger.getLogger(
+            Telnet2.class.getName());
+    private              OutputStream        serverOutput;
+    private              BufferedInputStream serverInput;
+    private              Socket              serverSocket;
 
     /**
      * Telnetオプションの交渉を行います。
@@ -28,13 +29,14 @@ public class Telnet2 {
      * @param out サーバーへの出力ストリーム
      * @throws IOException 入出力エラーが発生した場合
      */
-    static void negotiation(BufferedInputStream in, OutputStream out) throws IOException {
+    static void negotiation(BufferedInputStream in, OutputStream out)
+            throws IOException {
         byte[] buff = new byte[3];
         while (true) {
             in.mark(buff.length);
             if (in.available() >= buff.length) {
                 int readBytes = in.read(buff); // 読み取ったバイト数を使用
-                if (readBytes == -1) {
+                if (readBytes == - 1) {
                     break; // ストリームの終わりに達した場合
                 }
                 if (buff[0] != IAC) {
@@ -101,7 +103,8 @@ public class Telnet2 {
      * @throws IOException          ソケットの作成に失敗した場合
      * @throws UnknownHostException ホストが見つからない場合
      */
-    public void openConnection(String host, int port) throws IOException, UnknownHostException {
+    public void openConnection(String host, int port)
+            throws IOException, UnknownHostException {
         serverSocket = new Socket(host, port);
         serverOutput = serverSocket.getOutputStream();
         serverInput = new BufferedInputStream(serverSocket.getInputStream());
@@ -160,7 +163,7 @@ public class Telnet2 {
                 int n = src.read(buffer);
                 if (n > 0) {
                     dest.write(buffer, 0, n);
-                } else if (n == -1) {
+                } else if (n == - 1) {
                     break; // End of stream
                 }
             }
@@ -175,9 +178,15 @@ public class Telnet2 {
      */
     private void closeResources() {
         try {
-            if (serverOutput != null) serverOutput.close();
-            if (serverInput != null) serverInput.close();
-            if (serverSocket != null) serverSocket.close();
+            if (serverOutput != null) {
+                serverOutput.close();
+            }
+            if (serverInput != null) {
+                serverInput.close();
+            }
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error closing resources: ", e);
         }
