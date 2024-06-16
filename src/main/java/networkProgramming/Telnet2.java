@@ -60,17 +60,22 @@ public class Telnet2 {
     /**
      * メインメソッド。コマンドライン引数を使用してサーバーに接続します。
      *
-     * @param args コマンドライン引数。args[0]にはホスト名またはIPアドレス、args[1]にはポート番号が含まれます。
+     * @param args コマンドライン引数。args[0]にはホスト名またはIPアドレス、args[1]にはポート番号（省略可能）が含まれます。
      */
     public static void main(String[] args) {
-        if (args.length != 2) {
-            logger.severe("Usage: java Telnet2 <host> <port>");
+        if (args.length < 1) {
+            logger.severe("Usage: java Telnet2 <host> [<port>]");
             System.exit(1);
         }
 
+        String host = args[0];
+        int port = (args.length > 1)
+                ? Integer.parseInt(args[1])
+                : DEFAULT_TELNET_PORT;
+
         try {
             var t = new Telnet2();
-            t.openConnection(args[0], Integer.parseInt(args[1]));
+            t.openConnection(host, port);
             t.mainProc();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error: ", e);
