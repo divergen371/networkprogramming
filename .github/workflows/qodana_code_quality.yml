@@ -28,6 +28,9 @@ jobs:
           key: qodana-${{ github.ref }}
           restore-keys: |
             qodana-
+      - name: 'Check Qodana Cache Directory'
+        run: mkdir -p ~/.qodana/caches
+
       - name: 'Qodana Scan'
         uses: JetBrains/qodana-action@v2024.1
         env:
