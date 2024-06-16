@@ -15,6 +15,7 @@ public class DiscardServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        //noinspection CallToPrintStackTrace
         cause.printStackTrace();
         ctx.close();
     }
